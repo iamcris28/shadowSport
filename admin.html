@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShadowSport - Intranet Full</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #050505; color: #fff; display: flex; justify-content: center; padding: 50px; }
+        .container { width: 100%; max-width: 1000px; }
+        .card { background-color: #151517; border: 1px solid #333; border-radius: 12px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        h2 { color: #e11d2e; margin-top: 0; }
+        input, select { padding: 12px; margin-bottom: 15px; background: #0f0f10; border: 1px solid #333; color: white; border-radius: 8px; width: 100%; box-sizing: border-box; }
+        button { padding: 12px; background: #e11d2e; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; width: 100%; }
+        button:hover { background: #ff3b4d; }
+        .btn-green { background: #28a745; margin-top: 10px; }
+        .btn-green:hover { background: #218838; }
+        .btn-red { background: #dc3545; padding: 8px; width: auto; font-size: 12px; }
+        .btn-red:hover { background: #c82333; }
+        #dashboardPanel { display: none; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: #0f0f10; }
+        th, td { border: 1px solid #333; padding: 12px; text-align: left; }
+        th { background-color: #1a1a1c; color: #e11d2e; }
+        .badge { background: #333; padding: 5px 10px; border-radius: 5px; font-size: 12px; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; background: #1a1a1c; padding: 20px; border-radius: 8px; margin-bottom: 25px; }
+        .full-width { grid-column: span 2; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="loginPanel" class="card" style="max-width: 400px; margin: 0 auto;">
+        <h2>🔒 Intranet ShadowSport</h2>
+        <input type="email" id="email" placeholder="Correo electrónico" value="admin@shadowsport.com">
+        <input type="password" id="password" placeholder="Contraseña" value="supersecreto123">
+        <button onclick="iniciarSesion()">Ingresar</button>
+        <p id="mensajeLogin" style="color: #ff3b4d; text-align: center; margin-top: 15px;"></p>
+    </div>
+
+    <div id="dashboardPanel" class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2>📊 Panel de Control</h2>
+            <button onclick="cerrarSesion()" style="width: auto; background: #333; padding: 8px 15px;">Cerrar Sesión</button>
+        </div>
+        
+        <form id="formNuevoProducto" class="form-grid" onsubmit="crearProducto(event)">
+            <h3 class="full-width" style="margin: 0; color: #fff;">➕ Agregar Nuevo Producto</h3>
+            <input type="text" id="p_name" placeholder="Nombre (ej. Gorra Shadow)" required>
+            <input type="number" id="p_price" placeholder="Precio ($)" required>
+            <select id="p_category">
+                <option value="Training">Training</option>
+                <option value="Running">Running</option>
+                <option value="Recovery">Recovery</option>
+                <option value="Accesorios">Accesorios</option>
+            </select>
+            <select id="p_stock">
+                <option value="in_stock">Disponible</option>
+                <option value="low_stock">Poco Stock</option>
+                <option value="out_of_stock">Agotado</option>
+            </select>
+            <input type="text" id="p_desc" class="full-width" placeholder="Descripción breve" required>
+            <input type="text" id="p_image" class="full-width" placeholder="URL de la imagen (de Unsplash o web)" required>
+            <button type="submit" class="btn-green full-width">Guardar en Base de Datos</button>
+        </form>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Producto</th>
+                    <th>Categoría</th>
+                    <th>Precio</th>
+                    <th>Estado</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody id="tablaProductos"></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const API_URL = 'http://localhost:3000/api';
+
+    async function iniciarSesion() {
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        const msj = document.getElementById('mensajeLogin');
+        msj.innerText = "Conectando...";
+
+        try {
+            const res = await fetch(`${API_URL}/auth/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+            const datos = await res.json();
+            if (res.ok) {
+                localStorage.setItem('token_shadowsport', datos.token);
+                document.getElementById('loginPanel').style.display = 'none';
+                document.getElementById('dashboardPanel').style.display = 'block';
+                cargarInventarioProtegido();
+            } else { msj.innerText = "❌ " + datos.error; }
+        } catch (e) { msj.innerText = "Error: Servidor apagado."; }
+    }
+
+    async function cargarInventarioProtegido() {
+        const token = localStorage.getItem('token_shadowsport');
+        const res = await fetch(`${API_URL}/products`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const productos = await res.json();
+        const tabla = document.getElementById('tablaProductos');
+        tabla.innerHTML = ''; 
+
+        // Invertimos el array para que los más nuevos salgan hasta arriba
+        productos.reverse().forEach(prod => {
+            tabla.innerHTML += `
+                <tr>
+                    <td><strong>${prod.name}</strong></td>
+                    <td><span class="badge">${prod.category}</span></td>
+                    <td>$${prod.price}</td>
+                    <td>${prod.stock_status === 'in_stock' ? '✅' : '⚠️'}</td>
+                    <td><button class="btn-red" onclick="borrarProducto('${prod._id}')">🗑️ Borrar</button></td>
+                </tr>
+            `;
+        });
+    }
+
+    // NUEVO: Función para CREAR un producto (POST)
+    async function crearProducto(event) {
+        event.preventDefault(); // Evita que la página se recargue al enviar el formulario
+        const token = localStorage.getItem('token_shadowsport');
+        
+        const nuevoProducto = {
+            name: document.getElementById('p_name').value,
+            price: Number(document.getElementById('p_price').value),
+            category: document.getElementById('p_category').value,
+            stock_status: document.getElementById('p_stock').value,
+            description: document.getElementById('p_desc').value,
+            image_url: document.getElementById('p_image').value
+        };
+
+        const res = await fetch(`${API_URL}/products`, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}` 
+            },
+            body: JSON.stringify(nuevoProducto)
+        });
+
+        if(res.ok) {
+            document.getElementById('formNuevoProducto').reset(); // Limpia el formulario
+            cargarInventarioProtegido(); // Recarga la tabla
+            alert("✅ Producto agregado con éxito");
+        } else { alert("❌ Error al guardar el producto"); }
+    }
+
+    // NUEVO: Función para BORRAR un producto (DELETE)
+    async function borrarProducto(id) {
+        if(!confirm("¿Estás seguro de que quieres borrar este producto?")) return;
+        
+        const token = localStorage.getItem('token_shadowsport');
+        const res = await fetch(`${API_URL}/products/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if(res.ok) {
+            cargarInventarioProtegido(); // Recarga la tabla para que desaparezca
+        } else { alert("❌ Error al eliminar"); }
+    }
+
+    function cerrarSesion() {
+        localStorage.removeItem('token_shadowsport');
+        window.location.reload();
+    }
+
+    if(localStorage.getItem('token_shadowsport')) {
+        document.getElementById('loginPanel').style.display = 'none';
+        document.getElementById('dashboardPanel').style.display = 'block';
+        cargarInventarioProtegido();
+    }
+</script>
+</body>
+</html>
