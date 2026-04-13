@@ -1,72 +1,75 @@
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { obtenerDB } = require('../config/db');
 
-// Función para registrar un nuevo Administrador
-const registrarAdmin = async (req, res) => {
+// 1. REGISTRO DE USUARIOS (Con asignación de Roles)
+const registro = async (req, res) => {
   try {
+    // Ahora también recibimos el "role" desde el frontend/Thunder Client
+    const { email, password, role } = req.body; 
     const db = obtenerDB();
-    const { email, password } = req.body;
 
-    // 1. Verificamos si el usuario ya existe
-    const usuarioExistente = await db.collection("users").findOne({ email });
+    // Verificamos si el correo ya existe
+    const usuarioExistente = await db.collection('users').findOne({ email });
     if (usuarioExistente) {
-      return res.status(400).json({ error: "Este correo ya está registrado" });
+      return res.status(400).json({ error: "El usuario ya existe" });
     }
 
-    // 2. Encriptamos la contraseña (le damos 10 vueltas de seguridad)
+    // Encriptamos la contraseña
     const salt = await bcrypt.genSalt(10);
     const passwordEncriptada = await bcrypt.hash(password, salt);
 
-    // 3. Guardamos al administrador en la base de datos
+    // MAGIA DE ROLES: Si no nos mandan un rol, por defecto será "cliente"
+    // Los roles válidos serán: 'admin', 'proveedor', 'cliente'
+    const rolAsignado = role || 'cliente';
+
     const nuevoUsuario = {
       email,
       password: passwordEncriptada,
-      role: 'admin' // Etiqueta clave para la Intranet
+      role: rolAsignado // Guardamos el rol en la base de datos
     };
 
-    await db.collection("users").insertOne(nuevoUsuario);
-    res.status(201).json({ mensaje: "Administrador registrado con éxito" });
+    await db.collection('users').insertOne(nuevoUsuario);
+    res.status(201).json({ mensaje: `Usuario registrado con éxito como ${rolAsignado}` });
 
   } catch (error) {
-    res.status(500).json({ error: "Error al registrar el administrador" });
+    res.status(500).json({ error: "Error al registrar usuario" });
   }
 };
 
-// Función para Iniciar Sesión (Login)
-const loginAdmin = async (req, res) => {
+// 2. LOGIN (Entregando el Gafete con el Rol adentro)
+const login = async (req, res) => {
   try {
-    const db = obtenerDB();
     const { email, password } = req.body;
+    const db = obtenerDB();
 
-    // 1. Buscamos al usuario por su correo
-    const usuario = await db.collection("users").findOne({ email });
+    const usuario = await db.collection('users').findOne({ email });
     if (!usuario) {
-      return res.status(401).json({ error: "Credenciales inválidas" });
+      return res.status(400).json({ error: "Credenciales inválidas" });
     }
 
-    // 2. Comparamos la contraseña que escribió con la encriptada en la BD
     const passwordCorrecta = await bcrypt.compare(password, usuario.password);
     if (!passwordCorrecta) {
-      return res.status(401).json({ error: "Credenciales inválidas" });
+      return res.status(400).json({ error: "Credenciales inválidas" });
     }
 
-    // 3. ¡Si todo está bien, generamos el Token (gafete)!
-    // Nota: Usamos una llave secreta que luego pondremos en tu .env
+    // MAGIA DEL TOKEN: Guardamos el ID y el ROL dentro del JWT
     const token = jwt.sign(
-      { id: usuario._id, role: usuario.role }, 
-      process.env.JWT_SECRET || 'llave_secreta_temporal', 
-      { expiresIn: '2h' } // El token caduca en 2 horas por seguridad
+      { id: usuario._id, role: usuario.role }, // <-- Aquí va el rol
+      process.env.JWT_SECRET || 'llave_secreta_temporal',
+      { expiresIn: '2h' }
     );
 
-    res.json({ mensaje: "Login exitoso", token });
+    // Le devolvemos el token y el rol al frontend para que Lisset sepa qué pantalla mostrarle
+    res.json({ 
+      mensaje: "Login exitoso", 
+      token,
+      role: usuario.role 
+    });
 
   } catch (error) {
-    res.status(500).json({ error: "Error al iniciar sesión" });
+    res.status(500).json({ error: "Error en el login" });
   }
 };
 
-module.exports = {
-  registrarAdmin,
-  loginAdmin
-};
+module.exports = { registro, login };

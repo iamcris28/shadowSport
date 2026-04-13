@@ -6,6 +6,7 @@ const cors = require('cors');
 const { conectarDB } = require('./config/db');
 const productRoutes = require('./routes/productRoutes');
 const authRoutes = require('./routes/authRoutes');
+const orderRoutes = require('./routes/orderRoutes');
 
 const app = express();
 const port = 3000;
@@ -20,6 +21,7 @@ conectarDB().then(() => {
   // Le decimos a Express que todas las rutas de productos empiecen con '/api/products'
   app.use('/api/products', productRoutes);
   app.use('/api/auth', authRoutes);
+  app.use('/api/orders', orderRoutes);
 
   // Ruta base de prueba
   app.get('/', (req, res) => {

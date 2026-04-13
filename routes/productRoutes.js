@@ -2,18 +2,19 @@ const express = require('express');
 const router = express.Router();
 const productController = require('../controllers/productController');
 
-// Importamos a nuestro guardia de seguridad
-const verificarToken = require('../middleware/authMiddleware');
+// Importamos a los DOS guardias
+const { verificarToken, verificarRol } = require('../middleware/authMiddleware');
 
-// 🟢 Rutas PÚBLICAS (Extranet)
-// Lisset y los clientes pueden ver el catálogo sin necesidad de Token
+// 🟢 RUTAS PÚBLICAS (Internet / Clientes) - No piden nada
 router.get('/', productController.obtenerProductos);
-router.get('/:id', productController.obtenerProductoPorId);
 
-// 🔴 Rutas PRIVADAS (Intranet)
-// Agregamos "verificarToken" en medio. Si el guardia dice "pasa", se ejecuta el controlador.
-router.post('/', verificarToken, productController.crearProducto);
-router.put('/:id', verificarToken, productController.actualizarProducto);
-router.delete('/:id', verificarToken, productController.borrarProducto);
+// 🔴 RUTAS PRIVADAS (Intranet / Solo Admins) 
+// Fíjate cómo ponemos a los dos guardias en fila: primero el token, luego el rol 'admin'
+router.post('/', verificarToken, verificarRol('admin'), productController.crearProducto);
+router.delete('/:id', verificarToken, verificarRol('admin'), productController.borrarProducto);
+
+// 🟡 RUTAS EXTRANET (Ejemplo a futuro para Proveedores)
+// Aquí podrías crear una ruta donde 'proveedor' y 'admin' puedan entrar a ver estadísticas de ventas, etc.
+// router.get('/estadisticas', verificarToken, verificarRol('admin', 'proveedor'), ...);
 
 module.exports = router;
