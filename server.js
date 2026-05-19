@@ -7,9 +7,12 @@ const { conectarDB } = require('./config/db');
 const productRoutes = require('./routes/productRoutes');
 const authRoutes = require('./routes/authRoutes');
 const orderRoutes = require('./routes/orderRoutes');
+const userRoutes = require('./routes/userRoutes');
+const { crearSesionPago } = require('./controllers/paymentController');
 
 const app = express();
-const port = 3000;
+//const port = 3000;
+const port = process.env.PORT || 3000;
 
 // Middlewares (Configuraciones base)
 app.use(cors());
@@ -21,7 +24,9 @@ conectarDB().then(() => {
   // Le decimos a Express que todas las rutas de productos empiecen con '/api/products'
   app.use('/api/products', productRoutes);
   app.use('/api/auth', authRoutes);
+  app.use('/api/users', userRoutes);
   app.use('/api/orders', orderRoutes);
+  app.post('/api/create-checkout-session', crearSesionPago);
 
   // Ruta base de prueba
   app.get('/', (req, res) => {
