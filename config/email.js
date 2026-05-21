@@ -1,23 +1,31 @@
-const { Resend } = require('resend');
-require('dotenv').config();
+// config/email.js
 
-// Inicializamos Resend con tu llave secreta
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Pega aquí la URL larguísima que te dio Google Apps Script
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwgfLw_dHqWCAFLE6CFY4usaqXOBEOh6hM_N_SPZCzwrq6fdZGj4Df-ybooSx-5Y0xnWA/exec";
 
 const enviarCorreo = async (destinatario, asunto, cuerpoHtml) => {
   try {
-    const data = await resend.emails.send({
-      // Resend te da este correo de prueba por defecto para que no tengas que comprar un dominio
-      from: 'ShadowSport <onboarding@resend.dev>', 
-      to: destinatario,
-      subject: asunto,
-      html: cuerpoHtml
+    const respuesta = await fetch(GOOGLE_SCRIPT_URL, {
+      method: 'POST',
+      // No mandamos headers de JSON porque a veces Google Script se confunde con los CORS
+      body: JSON.stringify({
+        to: destinatario,
+        subject: asunto,
+        html: cuerpoHtml
+      })
     });
 
-    console.log(`📧 Correo enviado con éxito vía Resend! ID: ${data.id}`);
-    return true;
+    const data = await respuesta.json();
+
+    if (data.status === 'success') {
+      console.log(`📧 Correo enviado con éxito por Google Script a: ${destinatario}`);
+      return true;
+    } else {
+      console.error('🚨 Error de Google Script:', data.message);
+      return false;
+    }
   } catch (error) {
-    console.error('🚨 Error enviando con Resend:', error);
+    console.error('🚨 Error de conexión con tu API de Google:', error);
     return false;
   }
 };
