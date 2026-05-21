@@ -6,10 +6,19 @@ const { enviarCorreo } = require('../config/email'); // <-- NUEVO: Importamos el
 const crearOrden = async (req, res) => {
     try {
         const db = obtenerDB();
+        const { ObjectId } = require('mongodb'); // Aseguramos tener ObjectId para buscar
         
-        // Empaquetamos los datos exactamente como los manda el checkout
+        // 🌟 CORRECCIÓN: Buscamos el correo real del usuario en la base de datos usando su ID
+        // Nota: Dependiendo de tu middleware, puede ser req.usuario.id o req.user.id
+        const idUsuario = req.usuario.id || req.usuario._id; 
+        const usuarioReal = await db.collection('users').findOne({ _id: new ObjectId(idUsuario) });
+        
+        // Si lo encuentra usa su correo, si no, deja un aviso
+        const correoCliente = usuarioReal ? usuarioReal.email : "correo_no_encontrado@shadowsport.com";
+
+        // Empaquetamos los datos con el correo real
         const nuevaOrden = {
-            user_email: req.usuario.email, 
+            user_email: correoCliente, // <--- ¡Aquí está la magia!
             items: req.body.items, 
             total: req.body.total, 
             shipping_address: req.body.shipping_address, 
