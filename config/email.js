@@ -1,13 +1,14 @@
-// config/email.js
 const nodemailer = require('nodemailer');
 require('dotenv').config();
 
-// Configuración del transporte utilizando Gmail como ejemplo
+// Configuración robusta y explícita para servidores en la nube (Render)
 const transcoder = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtp.gmail.com', // Dirección exacta de Google
+  port: 465,              // Puerto seguro SSL
+  secure: true,           // Usar encriptación
   auth: {
-    user: process.env.EMAIL_USER, // Tu correo electrónico (ej. shadow@gmail.com)
-    pass: process.env.EMAIL_PASS  // Tu contraseña de aplicación generada en Google
+    user: process.env.EMAIL_USER, 
+    pass: process.env.EMAIL_PASS  
   }
 });
 
