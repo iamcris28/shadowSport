@@ -57,7 +57,7 @@ const login = async (req, res) => {
 
     // MAGIA DEL TOKEN: Guardamos el ID y el ROL dentro del JWT
     const token = jwt.sign(
-      { id: usuario._id, role: usuario.role }, // <-- Aquí va el rol
+      { id: usuario._id, role: usuario.role, email: usuario.email }, // <-- Aquí va el rol
       process.env.JWT_SECRET || 'llave_secreta_temporal',
       { expiresIn: '2h' }
     );

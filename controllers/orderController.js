@@ -37,12 +37,28 @@ const crearOrden = async (req, res) => {
 };
 
 // 2. Ver mis pedidos (Para el cliente normal)
+// En tu archivo controllers/orderController.js
 const obtenerMisOrdenes = async (req, res) => {
     try {
         const db = obtenerDB();
-        const misPedidos = await db.collection('orders').find({ user_email: req.usuario.email }).toArray();
+        const { ObjectId } = require('mongodb');
+        
+        // 1. Tomamos el ID del usuario que viene en el token
+        const idUsuario = req.usuario.id || req.usuario._id; 
+        
+        // 2. Buscamos al usuario real en la base de datos
+        const usuarioReal = await db.collection('users').findOne({ _id: new ObjectId(idUsuario) });
+        
+        if (!usuarioReal) {
+             return res.status(404).json({ error: "Usuario no encontrado" });
+        }
+
+        // 3. Buscamos las órdenes usando el correo que encontramos en la BD
+        const misPedidos = await db.collection('orders').find({ user_email: usuarioReal.email }).toArray();
+        
         res.json(misPedidos);
     } catch (error) {
+        console.error("Error al obtener mis pedidos:", error);
         res.status(500).json({ error: "Error al obtener pedidos" });
     }
 };
